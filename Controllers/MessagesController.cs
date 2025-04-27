@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApiMessages.Data;
 using WebApiMessages.Models;
@@ -15,11 +16,13 @@ public class MessagesController : ControllerBase
         _context = messageContext;
     }
     [HttpGet]
+    [Authorize]
     public async Task<ActionResult<IEnumerable<Message>>> GetMessages()
     {
         return await _context.Messages.ToListAsync();
     }
     [HttpPost]
+    [Authorize]
     public async Task<ActionResult<Message>> PostMessage(Message message)
     {
         _context.Messages.Add(message);
