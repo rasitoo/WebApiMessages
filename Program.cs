@@ -7,18 +7,6 @@ using WebApiMessages.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-//Parte del DBCONTEXT
-var dbHost = builder.Configuration["DbSettings:Host"];
-var dbPort = builder.Configuration["DbSettings:Port"];
-var dbUsername = builder.Configuration["DbSettings:Username"];
-var dbPassword = builder.Configuration["DbSettings:Password"];
-var dbName = builder.Configuration["DbSettings:Database"];
-var connectionString = $"Host={dbHost};Username={dbUsername};Password={dbPassword};Database={dbName}";
-builder.Services.AddDbContext<MessageContext>(opt =>
-    opt.UseNpgsql(connectionString, b => b.MigrationsAssembly("WebApiMessages")));
-
-
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -50,8 +38,20 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+//Parte del DBCONTEXT
+var dbHost = builder.Configuration["DbSettings:Host"];
+var dbPort = builder.Configuration["DbSettings:Port"];
+var dbUsername = builder.Configuration["DbSettings:Username"];
+var dbPassword = builder.Configuration["DbSettings:Password"];
+var dbName = builder.Configuration["DbSettings:Database"];
+var connectionString = $"Host={dbHost};Username={dbUsername};Password={dbPassword};Database={dbName};Port={dbPort}";
+builder.Services.AddDbContext<MessageContext>(opt =>
+    opt.UseNpgsql(connectionString, b => b.MigrationsAssembly("WebApiMessages")));
+
+
 
 var secretkey = builder.Configuration["JwtSettings:SecretKey"];
+Console.WriteLine(secretkey); //¿?¿?¿?¿?¿?¿?¿?¿?¿?¿?¿?¿?¿?
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
@@ -72,7 +72,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             };
         });
 
-
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("UsuarioAutenticado", policy =>
+        policy.RequireAuthenticatedUser());
+});
 
 var app = builder.Build();
 
@@ -82,13 +86,9 @@ using (var scope = app.Services.CreateScope())
     dbContext.Database.Migrate(); // si da error borrar migrations y poner en consola de comandos dotnet ef migrations add InitialCreate y dotnet ef database update
 }
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
-app.UseAuthorization();
+
 app.MapControllers();
 app.Run();
