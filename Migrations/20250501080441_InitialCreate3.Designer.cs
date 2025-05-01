@@ -12,8 +12,8 @@ using WebApiMessages.Data;
 namespace WebApiMessages.Migrations
 {
     [DbContext(typeof(MessageContext))]
-    [Migration("20250417190700_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250501080441_InitialCreate3")]
+    partial class InitialCreate3
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -14,9 +14,10 @@ var dbPort = builder.Configuration["DbSettings:Port"];
 var dbUsername = builder.Configuration["DbSettings:Username"];
 var dbPassword = builder.Configuration["DbSettings:Password"];
 var dbName = builder.Configuration["DbSettings:Database"];
-var connectionString = $"Host={dbHost};Username={dbUsername};Password={dbPassword};Database={dbName};Port={dbPort}";
+var connectionString = $"Host={dbHost};Username={dbUsername};Password={dbPassword};Database={dbName}";
 builder.Services.AddDbContext<MessageContext>(opt =>
-    opt.UseNpgsql(connectionString));
+    opt.UseNpgsql(connectionString, b => b.MigrationsAssembly("WebApiMessages")));
+
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -78,7 +79,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<MessageContext>();
-    dbContext.Database.Migrate();
+    dbContext.Database.Migrate(); // si da error borrar migrations y poner en consola de comandos dotnet ef migrations add InitialCreate y dotnet ef database update
 }
 
 // Configure the HTTP request pipeline.

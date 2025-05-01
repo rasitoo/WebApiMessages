@@ -19,8 +19,12 @@ services:
     ports:
       - "8001:8080"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings_DefaultConnection: Host=postgres;Username=messagesLogin;Password=messagesPass;Database=messagesDb
+      DbSettings__Host: postgres
+      DbSettings__Port: 5432
+      DbSettings__Username: messagesLogin
+      DbSettings__Password: messagesPass
+      DbSettings__Database: messagesDb
+      JwtSettings__SecretKey: qwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnm
     depends_on:
       - postgres
     networks:
