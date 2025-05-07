@@ -12,7 +12,7 @@ using WebApiMessages.Data;
 namespace WebApiMessages.Migrations
 {
     [DbContext(typeof(MessageContext))]
-    [Migration("20250507210233_InitialCreate")]
+    [Migration("20250507210803_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />

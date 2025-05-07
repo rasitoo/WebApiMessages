@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WebApiMessages.Data;
 using WebApiMessages.Models;
@@ -16,7 +17,7 @@ public class MessageController : ControllerBase
     {
         _context = context;
     }
-
+    [Authorize]
     [HttpGet]
     public ActionResult<IEnumerable<MessageReadDTO>> GetMessages(
         [FromQuery] int? chatId,
@@ -52,7 +53,7 @@ public class MessageController : ControllerBase
         return Ok(messages);
     }
 
-
+    [Authorize]
     [HttpGet("{id}")]
     public ActionResult<MessageReadDTO> GetMessage(int id)
     {
@@ -73,7 +74,7 @@ public class MessageController : ControllerBase
 
         return Ok(message);
     }
-
+    [Authorize]
     [HttpPost]
     public ActionResult<MessageReadDTO> CreateMessage(MessageCreateDTO dto)
     {
@@ -99,7 +100,7 @@ public class MessageController : ControllerBase
 
         return CreatedAtAction(nameof(GetMessage), new { id = message.Id }, messageReadDTO);
     }
-
+    [Authorize]
     [HttpPut("{id}")]
     public IActionResult UpdateMessage(int id, MessageUpdateDTO dto)
     {
@@ -112,7 +113,7 @@ public class MessageController : ControllerBase
 
         return NoContent();
     }
-
+    [Authorize]
     [HttpDelete("{id}")]
     public IActionResult DeleteMessage(int id)
     {

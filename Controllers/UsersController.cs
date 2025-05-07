@@ -2,6 +2,7 @@
 using WebApiMessages.Data;
 using WebApiMessages.Models.Intermediates;
 using WebApiMessages.Models.DTO;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WebApiMessages.Controllers;
 
@@ -15,7 +16,7 @@ public class UserChatController : ControllerBase
     {
         _context = context;
     }
-
+    [Authorize]
     [HttpGet]
     public ActionResult<IEnumerable<UserChatReadDTO>> GetUserChats(
         [FromQuery] int? userId,
@@ -40,7 +41,7 @@ public class UserChatController : ControllerBase
         return Ok(userChats);
     }
 
-
+    [Authorize]
     [HttpPost]
     public IActionResult CreateUserChat(UserChatCreateDTO dto)
     {
@@ -55,7 +56,7 @@ public class UserChatController : ControllerBase
 
         return NoContent();
     }
-
+    [Authorize]
     [HttpDelete]
     public IActionResult DeleteUserChat(int userId, int chatId)
     {
