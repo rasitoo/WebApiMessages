@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using WebApiMessages.Data;
 using WebApiMessages.Models;
 using WebApiMessages.Models.DTO;
@@ -79,7 +80,7 @@ public class MessageController : ControllerBase
         var message = new Message
         {
             ChatId = dto.ChatId,
-            SenderId = dto.SenderId,
+            SenderId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var creatorId) ? creatorId : 0,
             Content = dto.Content,
             SentAt = DateTime.UtcNow
         };

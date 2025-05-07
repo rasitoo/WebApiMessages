@@ -2,7 +2,7 @@
 
 public class ChatReadDTO
 {
-    public int Id { get; set; }
+    public str Id { get; set; }
     public int CreatorId { get; set; }
     public string Name { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -10,7 +10,6 @@ public class ChatReadDTO
 
 public class ChatCreateDTO
 {
-    public int CreatorId { get; set; }
     public string Name { get; set; }
 }
 

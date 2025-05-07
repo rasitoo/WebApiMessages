@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using WebApiMessages.Data;
 using WebApiMessages.Models;
 using WebApiMessages.Models.DTO;
@@ -76,7 +77,7 @@ public class ChatController : ControllerBase
     {
         var chat = new Chat
         {
-            CreatorId = dto.CreatorId,
+            CreatorId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var creatorId) ? creatorId : 0,
             Name = dto.Name,
             CreatedAt = DateTime.UtcNow
         };

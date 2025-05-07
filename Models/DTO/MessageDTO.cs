@@ -11,7 +11,6 @@
     public class MessageCreateDTO
     {
         public int ChatId { get; set; }
-        public int SenderId { get; set; }
         public string Content { get; set; }
     }
     public class MessageUpdateDTO
