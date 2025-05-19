@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 using WebApiMessages.Data;
 using WebApiMessages.Models;
@@ -9,14 +10,17 @@ namespace WebApiMessages.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class MessageController : ControllerBase
+public class MessagesController : ControllerBase
 {
     private readonly MessageContext _context;
+    private readonly IHubContext<MessageHub> _hubContext;
 
-    public MessageController(MessageContext context)
+    public MessagesController(MessageContext context, IHubContext<MessageHub> hubContext)
     {
         _context = context;
+        _hubContext = hubContext;
     }
+
     [Authorize]
     [HttpGet]
     public ActionResult<IEnumerable<MessageReadDTO>> GetMessages(
@@ -74,9 +78,10 @@ public class MessageController : ControllerBase
 
         return Ok(message);
     }
+
     [Authorize]
     [HttpPost]
-    public ActionResult<MessageReadDTO> CreateMessage(MessageCreateDTO dto)
+    public async Task<ActionResult<MessageReadDTO>> CreateMessage(MessageCreateDTO dto)
     {
         var message = new Message
         {
@@ -98,11 +103,14 @@ public class MessageController : ControllerBase
             SentAt = message.SentAt
         };
 
+        await _hubContext.Clients.Group(message.ChatId.ToString()).SendAsync("ReceiveMessage", messageReadDTO);
+
         return CreatedAtAction(nameof(GetMessage), new { id = message.Id }, messageReadDTO);
     }
+
     [Authorize]
     [HttpPut("{id}")]
-    public IActionResult UpdateMessage(int id, MessageUpdateDTO dto)
+    public async Task<IActionResult> UpdateMessage(int id, MessageUpdateDTO dto)
     {
         var message = _context.Messages.Find(id);
         if (message == null)
@@ -111,18 +119,34 @@ public class MessageController : ControllerBase
         message.Content = dto.Content;
         _context.SaveChanges();
 
+        var messageReadDTO = new MessageReadDTO
+        {
+            Id = message.Id,
+            ChatId = message.ChatId,
+            SenderId = message.SenderId,
+            Content = message.Content,
+            SentAt = message.SentAt
+        };
+
+        await _hubContext.Clients.Group(message.ChatId.ToString()).SendAsync("MessageUpdated", messageReadDTO);
+
         return NoContent();
     }
+
     [Authorize]
     [HttpDelete("{id}")]
-    public IActionResult DeleteMessage(int id)
+    public async Task<IActionResult> DeleteMessage(int id)
     {
         var message = _context.Messages.Find(id);
         if (message == null)
             return NotFound();
 
+        int chatId = message.ChatId;
+
         _context.Messages.Remove(message);
         _context.SaveChanges();
+
+        await _hubContext.Clients.Group(chatId.ToString()).SendAsync("MessageDeleted", id);
 
         return NoContent();
     }

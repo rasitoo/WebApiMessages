@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 using WebApiMessages.Data;
 using WebApiMessages.Models;
@@ -9,14 +10,17 @@ namespace WebApiMessages.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ChatController : ControllerBase
+public class ChatsController : ControllerBase
 {
     private readonly MessageContext _context;
+    private readonly IHubContext<MessageHub> _hubContext;
 
-    public ChatController(MessageContext context)
+    public ChatsController(MessageContext context, IHubContext<MessageHub> hubContext)
     {
         _context = context;
+        _hubContext = hubContext;
     }
+
     [Authorize]
     [HttpGet]
     public ActionResult<IEnumerable<ChatReadDTO>> GetChats(
@@ -72,9 +76,10 @@ public class ChatController : ControllerBase
 
         return Ok(chat);
     }
+
     [Authorize]
     [HttpPost]
-    public ActionResult<ChatReadDTO> CreateChat(ChatCreateDTO dto)
+    public async Task<ActionResult<ChatReadDTO>> CreateChat(ChatCreateDTO dto)
     {
         var chat = new Chat
         {
@@ -94,11 +99,14 @@ public class ChatController : ControllerBase
             CreatedAt = chat.CreatedAt
         };
 
+        await _hubContext.Clients.Group(chat.Id.ToString()).SendAsync("ChatCreated", chatReadDTO);
+
         return CreatedAtAction(nameof(GetChat), new { id = chat.Id }, chatReadDTO);
     }
+
     [Authorize]
     [HttpPut("{id}")]
-    public IActionResult UpdateChat(int id, ChatUpdateDTO dto)
+    public async Task<IActionResult> UpdateChat(int id, ChatUpdateDTO dto)
     {
         var chat = _context.Chats.Find(id);
         if (chat == null)
@@ -107,11 +115,22 @@ public class ChatController : ControllerBase
         chat.Name = dto.Name;
         _context.SaveChanges();
 
+        var chatReadDTO = new ChatReadDTO
+        {
+            Id = chat.Id,
+            CreatorId = chat.CreatorId,
+            Name = chat.Name,
+            CreatedAt = chat.CreatedAt
+        };
+
+        await _hubContext.Clients.Group(chat.Id.ToString()).SendAsync("ChatUpdated", chatReadDTO);
+
         return NoContent();
     }
+
     [Authorize]
     [HttpDelete("{id}")]
-    public IActionResult DeleteChat(int id)
+    public async Task<IActionResult> DeleteChat(int id)
     {
         var chat = _context.Chats.Find(id);
         if (chat == null)
@@ -119,6 +138,8 @@ public class ChatController : ControllerBase
 
         _context.Chats.Remove(chat);
         _context.SaveChanges();
+
+        await _hubContext.Clients.Group(id.ToString()).SendAsync("ChatDeleted", id);
 
         return NoContent();
     }

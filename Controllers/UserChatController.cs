@@ -3,6 +3,7 @@ using WebApiMessages.Data;
 using WebApiMessages.Models.Intermediates;
 using WebApiMessages.Models.DTO;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 
 namespace WebApiMessages.Controllers;
 
@@ -11,11 +12,14 @@ namespace WebApiMessages.Controllers;
 public class UserChatController : ControllerBase
 {
     private readonly MessageContext _context;
+    private readonly IHubContext<MessageHub> _hubContext;
 
-    public UserChatController(MessageContext context)
+    public UserChatController(MessageContext context, IHubContext<MessageHub> hubContext)
     {
         _context = context;
+        _hubContext = hubContext;
     }
+
     [Authorize]
     [HttpGet]
     public ActionResult<IEnumerable<UserChatReadDTO>> GetUserChats(
@@ -43,7 +47,7 @@ public class UserChatController : ControllerBase
 
     [Authorize]
     [HttpPost]
-    public IActionResult CreateUserChat(UserChatCreateDTO dto)
+    public async Task<IActionResult> CreateUserChat(UserChatCreateDTO dto)
     {
         var userChat = new User_Chat
         {
@@ -54,11 +58,15 @@ public class UserChatController : ControllerBase
         _context.UserChats.Add(userChat);
         _context.SaveChanges();
 
+        await _hubContext.Clients.Group(dto.ChatId.ToString())
+            .SendAsync("UserJoinedChat", new { UserId = dto.UserId, ChatId = dto.ChatId });
+
         return NoContent();
     }
+
     [Authorize]
     [HttpDelete]
-    public IActionResult DeleteUserChat(int userId, int chatId)
+    public async Task<IActionResult> DeleteUserChat(int userId, int chatId)
     {
         var userChat = _context.UserChats
             .FirstOrDefault(uc => uc.UserId == userId && uc.ChatId == chatId);
@@ -68,6 +76,9 @@ public class UserChatController : ControllerBase
 
         _context.UserChats.Remove(userChat);
         _context.SaveChanges();
+
+        await _hubContext.Clients.Group(chatId.ToString())
+            .SendAsync("UserLeftChat", new { UserId = userId, ChatId = chatId });
 
         return NoContent();
     }

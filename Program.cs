@@ -3,12 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using WebApiMessages.Controllers;
 using WebApiMessages.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddSignalR();
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -38,7 +39,6 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-//Parte del DBCONTEXT
 var dbHost = builder.Configuration["DbSettings:Host"];
 var dbPort = builder.Configuration["DbSettings:Port"];
 var dbUsername = builder.Configuration["DbSettings:Username"];
@@ -51,7 +51,6 @@ builder.Services.AddDbContext<MessageContext>(opt =>
 
 
 var secretkey = builder.Configuration["JwtSettings:SecretKey"];
-Console.WriteLine(secretkey); //¿?¿?¿?¿?¿?¿?¿?¿?¿?¿?¿?¿?¿?
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
@@ -79,6 +78,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+app.MapHub<MessageHub>("/hubs/messages");
 
 using (var scope = app.Services.CreateScope())
 {
