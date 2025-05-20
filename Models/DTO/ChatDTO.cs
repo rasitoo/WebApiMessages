@@ -17,3 +17,8 @@ public class ChatUpdateDTO
 {
     public string Name { get; set; }
 }
+
+public class UserInChatDTO
+{
+    public int UserId { get; set; }
+}

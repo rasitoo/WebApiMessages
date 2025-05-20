@@ -5,6 +5,7 @@ using System.Security.Claims;
 using WebApiMessages.Data;
 using WebApiMessages.Models;
 using WebApiMessages.Models.DTO;
+using WebApiMessages.Models.Intermediates;
 
 namespace WebApiMessages.Controllers;
 
@@ -29,6 +30,10 @@ public class ChatsController : ControllerBase
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate)
     {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
+            return Unauthorized();
+
         var query = _context.Chats.AsQueryable();
 
         if (creatorId.HasValue)
@@ -44,6 +49,7 @@ public class ChatsController : ControllerBase
             query = query.Where(c => c.CreatedAt <= endDate.Value);
 
         var chats = query
+            .Where(c => c.CreatorId == userId)
             .Select(c => new ChatReadDTO
             {
                 Id = c.Id,
@@ -54,27 +60,6 @@ public class ChatsController : ControllerBase
             .ToList();
 
         return Ok(chats);
-    }
-
-    [Authorize]
-    [HttpGet("{id}")]
-    public ActionResult<ChatReadDTO> GetChat(int id)
-    {
-        var chat = _context.Chats
-            .Where(c => c.Id == id)
-            .Select(c => new ChatReadDTO
-            {
-                Id = c.Id,
-                CreatorId = c.CreatorId,
-                Name = c.Name,
-                CreatedAt = c.CreatedAt
-            })
-            .FirstOrDefault();
-
-        if (chat == null)
-            return NotFound();
-
-        return Ok(chat);
     }
 
     [Authorize]
@@ -101,16 +86,64 @@ public class ChatsController : ControllerBase
 
         await _hubContext.Clients.Group(chat.Id.ToString()).SendAsync("ChatCreated", chatReadDTO);
 
+        var userChat = new User_Chat
+        {
+            UserId = chat.CreatorId,
+            ChatId = chat.Id
+        };
+
+        _context.UserChats.Add(userChat);
+        _context.SaveChanges();
+
+        await _hubContext.Clients.Group(chat.Id.ToString())
+            .SendAsync("UserJoinedChat", new { UserId = chat.CreatorId, ChatId = chat.Id });
+
+
         return CreatedAtAction(nameof(GetChat), new { id = chat.Id }, chatReadDTO);
+    }
+
+    [Authorize]
+    [HttpGet("{id}")]
+    public ActionResult<ChatReadDTO> GetChat(int id)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
+            return Unauthorized();
+
+        var chat = _context.Chats
+            .Where(c => c.Id == id)
+            .Select(c => new ChatReadDTO
+            {
+                Id = c.Id,
+                CreatorId = c.CreatorId,
+                Name = c.Name,
+                CreatedAt = c.CreatedAt
+            })
+            .FirstOrDefault();
+
+        if (chat == null)
+            return NotFound();
+
+        if (chat.CreatorId != userId)
+            return Forbid();
+
+        return Ok(chat);
     }
 
     [Authorize]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateChat(int id, ChatUpdateDTO dto)
     {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
+            return Unauthorized();
+
         var chat = _context.Chats.Find(id);
         if (chat == null)
             return NotFound();
+
+        if (chat.CreatorId != userId)
+            return Forbid();
 
         chat.Name = dto.Name;
         _context.SaveChanges();
@@ -132,9 +165,16 @@ public class ChatsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteChat(int id)
     {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
+            return Unauthorized();
+
         var chat = _context.Chats.Find(id);
         if (chat == null)
             return NotFound();
+
+        if (chat.CreatorId != userId)
+            return Forbid();
 
         _context.Chats.Remove(chat);
         _context.SaveChanges();
@@ -143,4 +183,5 @@ public class ChatsController : ControllerBase
 
         return NoContent();
     }
+
 }

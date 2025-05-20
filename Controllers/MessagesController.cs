@@ -29,7 +29,18 @@ public class MessagesController : ControllerBase
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate)
     {
-        var query = _context.Messages.AsQueryable();
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
+            return Unauthorized();
+
+        var userChatIds = _context.UserChats
+            .Where(uc => uc.UserId == userId)
+            .Select(uc => uc.ChatId)
+            .ToList();
+
+        var query = _context.Messages
+            .Where(m => userChatIds.Contains(m.ChatId))
+            .AsQueryable();
 
         if (chatId.HasValue)
             query = query.Where(m => m.ChatId == chatId.Value);
@@ -61,8 +72,17 @@ public class MessagesController : ControllerBase
     [HttpGet("{id}")]
     public ActionResult<MessageReadDTO> GetMessage(int id)
     {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
+            return Unauthorized();
+
+        var userChatIds = _context.UserChats
+            .Where(uc => uc.UserId == userId)
+            .Select(uc => uc.ChatId)
+            .ToList();
+
         var message = _context.Messages
-            .Where(m => m.Id == id)
+            .Where(m => m.Id == id && userChatIds.Contains(m.ChatId))
             .Select(m => new MessageReadDTO
             {
                 Id = m.Id,
@@ -79,14 +99,23 @@ public class MessagesController : ControllerBase
         return Ok(message);
     }
 
+
     [Authorize]
     [HttpPost]
     public async Task<ActionResult<MessageReadDTO>> CreateMessage(MessageCreateDTO dto)
     {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
+            return Unauthorized();
+
+        var isMember = _context.UserChats.Any(uc => uc.UserId == userId && uc.ChatId == dto.ChatId);
+        if (!isMember)
+            return Forbid();
+
         var message = new Message
         {
             ChatId = dto.ChatId,
-            SenderId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var creatorId) ? creatorId : 0,
+            SenderId = userId,
             Content = dto.Content,
             SentAt = DateTime.UtcNow
         };
@@ -108,13 +137,21 @@ public class MessagesController : ControllerBase
         return CreatedAtAction(nameof(GetMessage), new { id = message.Id }, messageReadDTO);
     }
 
+
     [Authorize]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateMessage(int id, MessageUpdateDTO dto)
     {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
+            return Unauthorized();
+
         var message = _context.Messages.Find(id);
         if (message == null)
             return NotFound();
+
+        if (message.SenderId != userId)
+            return Forbid();
 
         message.Content = dto.Content;
         _context.SaveChanges();
@@ -137,9 +174,16 @@ public class MessagesController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteMessage(int id)
     {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
+            return Unauthorized();
+
         var message = _context.Messages.Find(id);
         if (message == null)
             return NotFound();
+
+        if (message.SenderId != userId)
+            return Forbid();
 
         int chatId = message.ChatId;
 
@@ -150,4 +194,5 @@ public class MessagesController : ControllerBase
 
         return NoContent();
     }
+
 }

@@ -4,6 +4,8 @@ using WebApiMessages.Models.Intermediates;
 using WebApiMessages.Models.DTO;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace WebApiMessages.Controllers;
 
@@ -23,32 +25,54 @@ public class UserChatController : ControllerBase
     [Authorize]
     [HttpGet]
     public ActionResult<IEnumerable<UserChatReadDTO>> GetUserChats(
-        [FromQuery] int? userId,
-        [FromQuery] int? chatId)
+        [FromQuery] int? chatId,
+        [FromQuery] string? chatName)
     {
-        var query = _context.UserChats.AsQueryable();
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
+            return Unauthorized();
 
-        if (userId.HasValue)
-            query = query.Where(uc => uc.UserId == userId.Value);
+        var query = _context.UserChats
+            .Include(uc => uc.Chat)
+            .Where(uc => uc.UserId == userId);
 
         if (chatId.HasValue)
             query = query.Where(uc => uc.ChatId == chatId.Value);
+
+        if (!string.IsNullOrEmpty(chatName))
+            query = query.Where(uc => uc.Chat.Name.Contains(chatName));
 
         var userChats = query
             .Select(uc => new UserChatReadDTO
             {
                 UserId = uc.UserId,
-                ChatId = uc.ChatId
+                ChatId = uc.ChatId,
+                Chat = new ChatReadDTO
+                {
+                    Id = uc.Chat.Id,
+                    CreatorId = uc.Chat.CreatorId,
+                    Name = uc.Chat.Name,
+                    CreatedAt = uc.Chat.CreatedAt
+                },
+                Users = _context.UserChats
+                    .Where(ucc => ucc.ChatId == uc.ChatId)
+                    .Select(ucc => new UserInChatDTO { UserId = ucc.UserId })
+                    .ToList()
             })
             .ToList();
 
         return Ok(userChats);
     }
 
+
+
     [Authorize]
     [HttpPost]
     public async Task<IActionResult> CreateUserChat(UserChatCreateDTO dto)
     {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
+            return Unauthorized();
         var userChat = new User_Chat
         {
             UserId = dto.UserId,
@@ -68,11 +92,19 @@ public class UserChatController : ControllerBase
     [HttpDelete]
     public async Task<IActionResult> DeleteUserChat(int userId, int chatId)
     {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var currentUserId) || currentUserId == 0)
+            return Unauthorized();
+
         var userChat = _context.UserChats
+            .Include(uc => uc.Chat)
             .FirstOrDefault(uc => uc.UserId == userId && uc.ChatId == chatId);
 
         if (userChat == null)
             return NotFound();
+
+        if (currentUserId != userChat.UserId && currentUserId != userChat.Chat.CreatorId)
+            return Forbid();
 
         _context.UserChats.Remove(userChat);
         _context.SaveChanges();
@@ -82,4 +114,5 @@ public class UserChatController : ControllerBase
 
         return NoContent();
     }
+
 }
