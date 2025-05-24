@@ -96,7 +96,7 @@ public class ChatsController : ControllerBase
         _context.SaveChanges();
 
         await _hubContext.Clients.Group(chat.Id.ToString())
-            .SendAsync("UserJoinedChat", new { UserId = chat.CreatorId, ChatId = chat.Id });
+            .SendAsync("UserJoined", new { UserId = chat.CreatorId, ChatId = chat.Id });
 
 
         return CreatedAtAction(nameof(GetChat), new { id = chat.Id }, chatReadDTO);

@@ -83,7 +83,7 @@ public class UserChatController : ControllerBase
         _context.SaveChanges();
 
         await _hubContext.Clients.Group(dto.ChatId.ToString())
-            .SendAsync("UserJoinedChat", new { UserId = dto.UserId, ChatId = dto.ChatId });
+            .SendAsync("UserJoined", new { UserId = dto.UserId, ChatId = dto.ChatId });
 
         return NoContent();
     }
@@ -110,7 +110,7 @@ public class UserChatController : ControllerBase
         _context.SaveChanges();
 
         await _hubContext.Clients.Group(chatId.ToString())
-            .SendAsync("UserLeftChat", new { UserId = userId, ChatId = chatId });
+            .SendAsync("UserLeft", new { UserId = userId, ChatId = chatId });
 
         return NoContent();
     }
