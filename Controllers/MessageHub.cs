@@ -2,6 +2,7 @@
 
 using Microsoft.AspNetCore.SignalR;
 using System.Threading.Tasks;
+using WebApiMessages.Models.DTO;
 
 public class MessageHub : Hub
 {
@@ -38,5 +39,28 @@ public class MessageHub : Hub
     public async Task NotifyMessageDeleted(int chatId, int messageId)
     {
         await Clients.Group(chatId.ToString()).SendAsync("MessageDeleted", messageId);
+    }
+
+    //public async Task NotifyChatCreated(ChatReadDTO chat)
+    //{
+    //    var chatId = chat.Id.ToString();
+    //    if (!string.IsNullOrEmpty(chatId))
+    //    {
+    //        await Clients.All.SendAsync("ChatCreated", chat);
+    //    }
+    //}
+
+    public async Task NotifyChatUpdated(ChatReadDTO chat)
+    {
+        var chatId = chat.Id.ToString();
+        if (!string.IsNullOrEmpty(chatId))
+        {
+            await Clients.Group(chatId).SendAsync("ChatUpdated", chat);
+        }
+    }
+
+    public async Task NotifyChatDeleted(int chatId)
+    {
+        await Clients.Group(chatId.ToString()).SendAsync("ChatDeleted", chatId);
     }
 }
