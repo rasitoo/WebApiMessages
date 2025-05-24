@@ -71,7 +71,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             };
         });
 
-
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("UsuarioAutenticado", policy =>
+        policy.RequireAuthenticatedUser());
+});
 
 var app = builder.Build();
 
@@ -81,13 +85,16 @@ using (var scope = app.Services.CreateScope())
     dbContext.Database.Migrate();
 }
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
+app.UseRouting();
+
+app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapHub<MessageHub>("/hubs/messages");
+
 app.MapControllers();
+
 app.Run();
