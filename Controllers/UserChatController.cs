@@ -80,7 +80,7 @@ public class UserChatController : ControllerBase
         };
 
         _context.UserChats.Add(userChat);
-        _context.SaveChanges();
+        await _context.SaveChangesAsync();
 
         await _hubContext.Clients.Group(dto.ChatId.ToString())
             .SendAsync("UserJoined", new { UserId = dto.UserId, ChatId = dto.ChatId });
@@ -106,11 +106,13 @@ public class UserChatController : ControllerBase
         if (currentUserId != userChat.UserId && currentUserId != userChat.Chat.CreatorId)
             return Forbid();
 
+        await _hubContext.Clients.Group(chatId.ToString())
+           .SendAsync("UserLeft", new { UserId = userId, ChatId = chatId });
+
         _context.UserChats.Remove(userChat);
         _context.SaveChanges();
 
-        await _hubContext.Clients.Group(chatId.ToString())
-            .SendAsync("UserLeft", new { UserId = userId, ChatId = chatId });
+
 
         return NoContent();
     }
