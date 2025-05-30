@@ -18,18 +18,18 @@ public class MessageHub : Hub
         await Clients.Group(chatId).SendAsync("UserLeft", $"{Context.ConnectionId} left chat {chatId}");
     }
 
-    public async Task NotifyMessageCreated(object message)
+    public async Task NotifyMessageCreated(MessageReadDTO message)
     {
-        var chatId = message.GetType().GetProperty("ChatId")?.GetValue(message)?.ToString();
+        var chatId = message.ChatId.ToString();
         if (!string.IsNullOrEmpty(chatId))
         {
             await Clients.Group(chatId).SendAsync("ReceiveMessage", message);
         }
     }
 
-    public async Task NotifyMessageUpdated(object message)
+    public async Task NotifyMessageUpdated(MessageReadDTO message)
     {
-        var chatId = message.GetType().GetProperty("ChatId")?.GetValue(message)?.ToString();
+        var chatId = message.ChatId.ToString();
         if (!string.IsNullOrEmpty(chatId))
         {
             await Clients.Group(chatId).SendAsync("MessageUpdated", message);
