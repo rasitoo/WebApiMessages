@@ -21,7 +21,6 @@ public class ChatsController : ControllerBase
         _context = context;
         _hubContext = hubContext;
     }
-
     [Authorize]
     [HttpGet]
     public ActionResult<IEnumerable<ChatReadDTO>> GetChats(
@@ -34,7 +33,15 @@ public class ChatsController : ControllerBase
         if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
             return Unauthorized();
 
-        var query = _context.Chats.AsQueryable();
+        // Obtener los ChatId a los que pertenece el usuario
+        var userChatIds = _context.UserChats
+            .Where(uc => uc.UserId == userId)
+            .Select(uc => uc.ChatId)
+            .ToList();
+
+        var query = _context.Chats
+            .Where(c => userChatIds.Contains(c.Id))
+            .AsQueryable();
 
         if (creatorId.HasValue)
             query = query.Where(c => c.CreatorId == creatorId.Value);
@@ -49,7 +56,6 @@ public class ChatsController : ControllerBase
             query = query.Where(c => c.CreatedAt <= endDate.Value);
 
         var chats = query
-            .Where(c => c.CreatorId == userId)
             .Select(c => new ChatReadDTO
             {
                 Id = c.Id,
@@ -61,6 +67,38 @@ public class ChatsController : ControllerBase
 
         return Ok(chats);
     }
+
+    [Authorize]
+    [HttpGet("{id}")]
+    public ActionResult<ChatReadDTO> GetChat(int id)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
+            return Unauthorized();
+
+        // Verifica si el usuario pertenece al chat
+        var isMember = _context.UserChats.Any(uc => uc.UserId == userId && uc.ChatId == id);
+        if (!isMember)
+            return Forbid();
+
+        var chat = _context.Chats
+            .Where(c => c.Id == id)
+            .Select(c => new ChatReadDTO
+            {
+                Id = c.Id,
+                CreatorId = c.CreatorId,
+                Name = c.Name,
+                CreatedAt = c.CreatedAt
+            })
+            .FirstOrDefault();
+
+        if (chat == null)
+            return NotFound();
+
+        return Ok(chat);
+    }
+
+
 
     [Authorize]
     [HttpPost]
@@ -100,34 +138,6 @@ public class ChatsController : ControllerBase
 
 
         return CreatedAtAction(nameof(GetChat), new { id = chat.Id }, chatReadDTO);
-    }
-
-    [Authorize]
-    [HttpGet("{id}")]
-    public ActionResult<ChatReadDTO> GetChat(int id)
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!int.TryParse(userIdClaim, out var userId) || userId == 0)
-            return Unauthorized();
-
-        var chat = _context.Chats
-            .Where(c => c.Id == id)
-            .Select(c => new ChatReadDTO
-            {
-                Id = c.Id,
-                CreatorId = c.CreatorId,
-                Name = c.Name,
-                CreatedAt = c.CreatedAt
-            })
-            .FirstOrDefault();
-
-        if (chat == null)
-            return NotFound();
-
-        if (chat.CreatorId != userId)
-            return Forbid();
-
-        return Ok(chat);
     }
 
     [Authorize]
